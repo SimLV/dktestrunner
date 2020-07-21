@@ -196,7 +196,7 @@ lib/$(PCRE_NAME)/src/pcre2.h: lib/$(PCRE_NAME)/src/pcre2.h.generic
 lib/$(PCRE_NAME)/obj/%.o: lib/pcre2-10.35/src/%.c lib/$(PCRE_NAME)/src/pcre2.h
 	$(CC) $(CFLAGS) $(PCRE_FLAGS) -o"$@" "$<" -DQ=1
 
-pcre2: lib/pcre2-10.35/src/pcre2.h.generic
+pcre2: lib/pcre2-10.35/src/pcre2.h
 
 # JIT
 
@@ -207,15 +207,15 @@ lib/$(PCRE_NAME)/obj/%.o: lib/$(PCRE_NAME)/src/sljit/%.c
 
 lib/$(CUNIT_NAME).tar.bz2:
 	-$(ECHO) 'Downloading package: $@'
-	curl -L -o "lib/$@.dl" "$(CUNIT_URL)"
-	tar -tf "lib/$@.dl" >/dev/null
+	curl -L -o "$@.dl" "$(CUNIT_URL)"
+	tar -tf "$@.dl" >/dev/null
 	$(MV) "$@.dl" "$@"
 
 lib/$(CUNIT_NAME)/Sources/Framework/CUError.c: lib/$(CUNIT_NAME).tar.bz2
 	-$(ECHO) 'Extracting package: $<'
 	-cd "$(<D)"; tar -xf "$(<F)"
 	$(MKDIR) lib/$(CUNIT_NAME)/obj
-  
+	$(CP) lib/$(CUNIT_NAME)/CUnit/Headers/CUnit.h.in lib/$(CUNIT_NAME)/CUnit/Headers/CUnit.h
 	-$(ECHO) 'Finished extracting: $<'
 	-$(ECHO) ' '
 
@@ -223,19 +223,19 @@ cunit: lib/$(CUNIT_NAME)/Sources/Framework/CUError.c
 
 lib/$(CUNIT_NAME)/obj/%.o: lib/$(CUNIT_NAME)/CUnit/Sources/Framework/%.c
 	-$(ECHO) 'Building file: $<'
-	$(CC) $(CFLAGS) $(CUNIT_FLAGS) -o"$@" "$<" -DQ=cu
+	$(CC) $(CFLAGS) $(CUNIT_FLAGS) -o"$@" "$<"
 	-$(ECHO) 'Finished building: $<'
 	-$(ECHO) ' '
 
 lib/$(CUNIT_NAME)/obj/Basic.o: lib/$(CUNIT_NAME)/CUnit/Sources/Basic/Basic.c
 	-$(ECHO) 'Building file: $<'
-	$(CC) $(CFLAGS) $(CUNIT_FLAGS) -o"$@" "$<" -DQ=cu2
+	$(CC) $(CFLAGS) $(CUNIT_FLAGS) -o"$@" "$<"
 	-$(ECHO) 'Finished building: $<'
 	-$(ECHO) ' '
 
 # obj
 
-obj/%.o: src/%.c $(GENSRC)
+obj/%.o: src/%.c $(GENSRC) cunit pcre2
 	-$(ECHO) 'Building file: $<'
 	$(CC) $(CFLAGS) $(CUNIT_FLAGS) $(PCRE_FLAGS) $(JIT_FLAGS) -o"$@" "$<" -DQ=w
 	-$(ECHO) 'Finished building: $<'
