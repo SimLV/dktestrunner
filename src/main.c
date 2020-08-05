@@ -513,13 +513,15 @@ int main(int argc, char **argv)
       }
       else
       {
-          printf("usage: %s\n"
+          printf("Usage: %s\n"
                 "\t--exit_at_turn <num>\t\t- exit level at specific time (default 12000 turns)\n"
                 "\t--frameskip <num>\t\t- set frameskip (default: 2)\n"
                 "\t--read\t\t\t- just wait for events and print them\n"
                 "\t--show_events\t\t- print events while running tests\n"
-                "\t--skip_events <regexp>\t- ignore events that match regexp\n",
-                argv[0]);
+                "\t--skip_events <regexp>\t- ignore events that match regexp\n"
+                "\n"
+                "This program should be located near keeperfx.exe and tests should be in '%s' folder\n",
+                argv[0], tests_path);
           return 1;
       }
   }

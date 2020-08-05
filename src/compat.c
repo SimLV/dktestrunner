@@ -165,6 +165,8 @@ void make_nonblocking(SOCKET s)
 void for_each_file(const char *folder, void (*fn) (const char* file, void *context), void *context)
 {
     DIR *dir = opendir(folder);
+    if (dir == NULL)
+        return;
     for (struct dirent *ent = readdir(dir); ent != NULL; ent = readdir(dir))
     {
         if (ent->d_type == DT_REG)
