@@ -299,7 +299,7 @@ int tst_process(const char *data_buf, void *context_)
     struct TestContext *start_context = context_;
     int ok;
     if (print_all)
-        printf("%s", data_buf);
+        printf("%s\n", data_buf);
 
     for (struct TestContext *context = start_context; context != NULL; context = context->next)
     {
