@@ -11,7 +11,7 @@
 #include "compat.h"
 
 const int MAX_CHECKS = 8;
-const int BUF_SIZE = 512;
+const int BUF_SIZE = 1024;
 const int DELAY = 5;
 
 int START_DELAY = 45;
@@ -578,7 +578,7 @@ int main(int argc, char **argv)
 
 int process_print(const char *data_buf, void* unused)
 {
-    fprintf(stdout, "%s", data_buf);
+    fprintf(stdout, "%s\n", data_buf);
     fflush(stdout);
     return 0;
 }
@@ -587,9 +587,11 @@ void process(ProcessFn process_fn, void *context)
 {
   char data_buf[BUF_SIZE];
   char buf_copy[BUF_SIZE];
-  char* main_axis = NULL;
-  char* tags = NULL;
-  char* values = NULL;
+  char *data_ptr;
+  char *next_ptr;
+  char *main_axis = NULL;
+  char *tags = NULL;
+  char *values = NULL;
   time_t fut_t = {0}, now_t ={0};
 
   time(&fut_t);
@@ -598,38 +600,57 @@ void process(ProcessFn process_fn, void *context)
   {
       int read = recv(sock, data_buf, BUF_SIZE, 0);
       if (read == 0)
+      {
+          printf("== read 0? ==\n");
           break;
+      }
       else if (read < 0)
       {
           if (checkblock(read))
-            break;
+              break;
       }
       else if (read > 0)
       {
           data_buf[read] = 0;
           time(&fut_t);
           fut_t += DELAY;
-          
-          strcpy(buf_copy, data_buf);
-          main_axis = buf_copy;
-          tags = strchr(buf_copy, ',');
-          values = strchr(buf_copy, ' ');
 
-          if (tags != NULL)
+          data_ptr = data_buf;
+          while (data_ptr != NULL)
           {
-            tags[0] = 0;
-            tags++;
-          }
-          if (values != NULL)
-          {
-            values[0] = 0;
-            values++;
-          }
-          
-          if ((skip_events == NULL) || (simple_match(skip_events, main_axis) == 0))
-          {
-              if (process_fn(data_buf, context) == 1)
-                  break;
+              next_ptr = strchr(data_ptr, '\n');
+              if (next_ptr)
+              {
+                  *next_ptr = 0;
+                  next_ptr++;
+              }
+              strcpy(buf_copy, data_ptr);
+              main_axis = buf_copy;
+              tags = strchr(buf_copy, ',');
+              values = strchr(buf_copy, ' ');
+
+              if (tags != NULL)
+              {
+                  tags[0] = 0;
+                  tags++;
+              }
+              if (values != NULL)
+              {
+                  values[0] = 0;
+                  values++;
+              }
+
+              if (data_ptr[0] != 0)
+              {
+                  if ((skip_events == NULL) || (simple_match(skip_events, main_axis) == 0))
+                  {
+                      if (process_fn(data_ptr, context) == 1)
+                      {
+                          return;
+                      }
+                  }
+              }
+              data_ptr = next_ptr;
           }
       }
       time(&now_t);

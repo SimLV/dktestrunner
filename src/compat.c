@@ -38,6 +38,8 @@ void wcleanup()
 void make_nonblocking(SOCKET s)
 {
   unsigned long one = 1;
+  int max_size = 65536;
+  setsockopt(s, SOL_SOCKET, SO_RCVBUF, &max_size, sizeof(int));
   ioctlsocket(s, FIONBIO, &one);
 }
 
