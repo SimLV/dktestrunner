@@ -12,8 +12,8 @@
 
 const int MAX_CHECKS = 8;
 const int BUF_SIZE = 1024;
-const int DELAY = 5;
 
+int DELAY = 5;
 int START_DELAY = 45;
 const char *end_turn_buf = "12000";
 const char *frameskip = "2";
@@ -487,6 +487,17 @@ int main(int argc, char **argv)
       {
           wait_events = 1;
       } else 
+      if (strcmp(argv[idx], "--delay") == 0)
+      {
+          idx++;
+          if (idx >= argc)
+          {
+              fprintf(stderr, "%s: option required\n", argv[idx-1] + 2);
+              return 1;
+          }
+          DELAY = argv[idx];
+          START_DELAY = DELAY;
+      } else 
       if (strcmp(argv[idx], "--frameskip") == 0)
       {
           idx++;
@@ -519,6 +530,7 @@ int main(int argc, char **argv)
                 "\t--read\t\t\t- just wait for events and print them\n"
                 "\t--show_events\t\t- print events while running tests\n"
                 "\t--skip_events <regexp>\t- ignore events that match regexp\n"
+                "\t--delay <ms>\t- wait for packets\n"
                 "\n"
                 "This program should be located near keeperfx.exe and tests should be in '%s' folder\n",
                 argv[0], tests_path);
