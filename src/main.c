@@ -10,8 +10,12 @@
 
 #include "compat.h"
 
+#if defined(USE_CURSES) && USE_CURSES
+#include <curses.h>
+#endif
+
 const int MAX_CHECKS = 8;
-const int BUF_SIZE = 512;
+const int BUF_SIZE = 4096;
 const int DELAY = 5;
 
 int START_DELAY = 45;
@@ -101,9 +105,9 @@ PID_TYPE dk_pid = 0;
 
 //////////
 
-typedef int (*ProcessFn)(const char *data_buf, void *context);
+typedef int (*ProcessFn)(const char *data_buf, void *context, void *addr, unsigned int addr_size);
 
-int process_print(const char *data_buf, void *context);
+int process_print(const char *data_buf, void *context, void *addr, unsigned int addr_size);
 
 void process(ProcessFn fn, void *context);
 
@@ -308,7 +312,7 @@ int tst_process_init(struct TestContext *start_context)
   return 1;
 }
 
-int tst_process(const char *data_buf, void *context_)
+int tst_process(const char *data_buf, void *context_, void *addr, unsigned int addr_size)
 {
   struct TestContext *start_context = context_;
   int ok;
@@ -588,27 +592,65 @@ int main(int argc, char **argv)
   return 0;
 }
 
-int process_print(const char *data_buf, void *unused)
+struct SourceRecord
 {
-  fprintf(stdout, "%s", data_buf);
+    struct sockaddr_in addr;
+    int id;
+};
+
+struct SourceRecord sources[8];
+int num_sources = 0;
+
+int cmp_records(const void *a_ptr, const void *b_ptr)
+{
+  const struct SourceRecord *obj_a = a_ptr;
+  const struct SourceRecord *obj_b = b_ptr;
+  return memcmp(&obj_a->addr, &obj_b->addr, sizeof(obj_a->addr));
+}
+
+int process_print(const char *data_buf, void *unused, void *addr, unsigned int addr_size)
+{
+  if (*data_buf == 0)
+  {
+    fprintf(stderr, "no data!\n");
+    return 0;
+  }
+  struct SourceRecord *rec = NULL;
+  if (num_sources != 0)
+  {
+    rec = bsearch(addr, sources, num_sources, sizeof(struct SourceRecord), &cmp_records);
+  }
+  if (rec == NULL)
+  {
+    memcpy(&sources[num_sources].addr, addr, addr_size);
+    sources[num_sources].id = num_sources;
+    rec = &sources[num_sources];
+    num_sources++;
+  }
+
+  fprintf(stdout, "%d, %s", rec->id, data_buf);
   fflush(stdout);
   return 0;
 }
 
 void process(ProcessFn process_fn, void *context)
 {
-  char data_buf[BUF_SIZE];
-  char buf_copy[BUF_SIZE];
+  char data_buf_[BUF_SIZE];
+  char buf_copy_[BUF_SIZE];
+  char *data_buf = data_buf_;
+  char *buf_copy = buf_copy_;
+  struct sockaddr_in from_buf;
   char *main_axis = NULL;
   char *tags = NULL;
   char *values = NULL;
   time_t fut_t = {0}, now_t = {0};
+  unsigned int from_size = sizeof(from_buf);
 
   time(&fut_t);
   fut_t += START_DELAY;
   while (now_t < fut_t)
   {
-    int read = recv(sock, data_buf, BUF_SIZE, 0);
+    int read = recvfrom(sock, data_buf, BUF_SIZE, 0, (struct sockaddr *) &from_buf, &from_size);
     if (read == 0)
       break;
     else if (read < 0)
@@ -640,7 +682,7 @@ void process(ProcessFn process_fn, void *context)
 
       if ((skip_events == NULL) || (simple_match(skip_events, main_axis) == 0))
       {
-        if (process_fn(data_buf, context) == 1)
+        if (process_fn(data_buf, context, &from_buf, from_size) == 1)
           break;
       }
     }

@@ -23,16 +23,21 @@ ifneq (,$(findstring Windows,$(OS)))
   PKGFMT = zip
   PKGOS = win
   CROSS_LFLAGS = -lwsock32
+  OSFLAGS =
 else
   RES  = 
   EXEEXT =
   PKGFMT = tar.gz
   PKGOS = lin
-
   # uncomment to crosscompile
-  CROSS_COMPILE = i686-w64-mingw32-
+  # CROSS_COMPILE = i686-w64-mingw32-
 
 #--enable-shared=no --enable-jit? --build=mingw64 ?
+ifeq (, $(CROSS_COMPILE))
+  CURSES ?= -DUSE_CURSES=1
+  OSFLAGS = -DLINUX=1 $(CURSES)
+endif
+
 endif
 
 ifneq (, $(CROSS_COMPILE))
@@ -141,8 +146,8 @@ LINKFLAGS = $(CROSS_LFLAGS)
 # compiler warning generation flags
 WARNFLAGS = -Wall -Wno-sign-compare -Wno-unused-parameter
 # disabled warnings: -Wextra -Wtype-limits
-CXXFLAGS = $(CXXINCS) $(PCRE_FLAGS) -c $(WARNFLAGS) $(DEPFLAGS) $(OPTFLAGS)
-CFLAGS = $(INCS) -c $(WARNFLAGS) $(DEPFLAGS) $(OPTFLAGS)
+CXXFLAGS = $(CXXINCS) $(PCRE_FLAGS) -c $(WARNFLAGS) $(DEPFLAGS) $(OPTFLAGS) $(OSFLAGS)
+CFLAGS = $(INCS) -c $(WARNFLAGS) $(DEPFLAGS) $(OPTFLAGS) $(OSFLAGS)
 LDFLAGS = $(LINKLIB) $(OPTFLAGS) $(DBGFLAGS) $(LINKFLAGS)
 
 # load program version
