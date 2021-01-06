@@ -12,6 +12,8 @@
 
 #if defined(USE_CURSES) && USE_CURSES
 #include <curses.h>
+#else
+#define USE_CURSES 0
 #endif
 
 const int MAX_CHECKS = 8;
@@ -23,6 +25,7 @@ const char *end_turn_buf = "12000";
 const char *frameskip = "2";
 char *skip_events = NULL;
 int print_all = 0;
+int use_curses = 0;
 
 #define LOGD(x, ...)
 
@@ -505,6 +508,12 @@ int main(int argc, char **argv)
     {
       wait_events = 0;
     }
+#if USE_CURSES
+    else if (strcmp(argv[idx], "--colors") == 0)
+    {
+      use_curses = 1;
+    }
+#endif
     else if (strcmp(argv[idx], "--delay") == 0)
     {
       idx++;
@@ -554,12 +563,26 @@ int main(int argc, char **argv)
       return 1;
     }
   }
-
   if (skip_events)
   {
     fprintf(stderr, "skipping events like /%s/\n", skip_events);
   }
   fprintf(stderr, "waiting for messages\n");
+
+  if (use_curses)
+  {
+#if USE_CURSES
+    initscr();
+    atexit(&endwin);
+    start_color();
+    init_pair(1, COLOR_RED + 8, COLOR_BLACK);
+    init_pair(2, COLOR_BLUE + 8, COLOR_BLACK);
+    init_pair(3, COLOR_GREEN + 8, COLOR_BLACK);
+    init_pair(4, COLOR_YELLOW, COLOR_BLACK);
+    init_pair(5, COLOR_WHITE, COLOR_BLACK);
+    scrollok(stdscr, TRUE);
+#endif
+  }
 ////////
 
   if (wstartup())
@@ -641,8 +664,24 @@ int process_print(const char *data_buf, void *unused, void *addr, unsigned int a
     num_sources++;
   }
 
-  fprintf(stdout, "%d, %s", rec->id, data_buf);
-  fflush(stdout);
+  if (!use_curses)
+  {
+    fprintf(stdout, "%s", data_buf);
+    if (data_buf[strlen((data_buf))] != '\n')
+    {
+      fputc('\n', stdout);
+    }
+    fflush(stdout);
+  }
+  else
+  {
+#if USE_CURSES != 0
+    wclrtoeol(stdscr);
+    wcolor_set(stdscr, rec->id + 1, NULL);
+    wprintw(stdscr, "%s\n", data_buf);
+    wrefresh(stdscr);
+#endif
+  }
   return 0;
 }
 

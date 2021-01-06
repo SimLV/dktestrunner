@@ -38,6 +38,7 @@ else
 #--enable-shared=no --enable-jit? --build=mingw64 ?
 ifeq (, $(CROSS_COMPILE))
   CURSES ?= -DUSE_CURSES=1
+  LINKFLAGS += -lcurses
   OSFLAGS = -DLINUX=1 $(CURSES)
 endif
 
@@ -147,7 +148,7 @@ OPTFLAGS = -ggdb
 #-O3
 DBGFLAGS =
 # linker flags
-LINKFLAGS = $(CROSS_LFLAGS)
+LINKFLAGS += $(CROSS_LFLAGS)
 # compiler warning generation flags
 WARNFLAGS = -Wall -Wno-sign-compare -Wno-unused-parameter
 # disabled warnings: -Wextra -Wtype-limits
