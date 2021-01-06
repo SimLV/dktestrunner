@@ -31,6 +31,9 @@ else
   PKGOS = lin
   # uncomment to crosscompile
   # CROSS_COMPILE = i686-w64-mingw32-
+  # uncomment next line if you have issue "-mshstk is needed to compile with -fcf-protection"
+  MSHSTK_FLAG = -mshstk
+
 
 #--enable-shared=no --enable-jit? --build=mingw64 ?
 ifeq (, $(CROSS_COMPILE))
@@ -57,6 +60,7 @@ MKDIR = mkdir -p
 ECHO = @echo
 TAR = tar
 ZIP = zip
+SED = sed
 
 PCRE_NAME = pcre2-10.35
 PCRE_URL = https://ftp.pcre.org/pub/pcre/pcre2-10.35.tar.bz2
@@ -96,7 +100,7 @@ PCRE_FLAGS = -Ilib/$(PCRE_NAME)/src -DPCRE2_CODE_UNIT_WIDTH=8 -DHAVE_STDINT_H=1 
 -DPARENS_NEST_LIMIT=250
 
 JIT_OBJS = \
-lib/$(PCRE_NAME)/obj/sljitLir.o
+lib/$(PCRE_NAME)/obj/jit/sljitLir.o
 
 ifeq (,$(CROSS_COMPILE))
 JIT_FLAGS = -DSLJIT_CONFIG_X86_64=1
@@ -104,6 +108,7 @@ else
 JIT_FLAGS = -DSLJIT_CONFIG_X86_32=1 -DSLJIT_ARGUMENT_CHECKS=0
 endif
 
+CUNIT_VER = 2.1.3
 CUNIT_NAME = CUnit-2.1-3
 CUNIT_URL = https://sourceforge.net/projects/cunit/files/CUnit/2.1-3/CUnit-2.1-3.tar.bz2/download
 CUNIT_OBJS = \
@@ -154,12 +159,12 @@ LDFLAGS = $(LINKLIB) $(OPTFLAGS) $(DBGFLAGS) $(LINKFLAGS)
 include version.mk
 VER_STRING = $(VER_MAJOR).$(VER_MINOR).$(VER_RELEASE).$(VER_BUILD)
 
-.PHONY: all all-before all-after clean clean-custom package pkg-before zip tar.gz
+.PHONY: all all-before all-after clean clean-custom package pkg-before zip tar.gz pcrefiles pcre2
 
 all: all-before $(RUNNERBIN) all-after
 
 all-before:
-	$(MKDIR) obj bin lib/pcre2-10.35/obj
+	$(MKDIR) obj bin lib/$(PCRE_NAME)/obj lib/$(PCRE_NAME)/obj/jit
 
 clean: clean-custom
 	-${RM} $(ALL_OBJS) $(GENSRC) $(LIBS)
@@ -186,27 +191,31 @@ lib/$(PCRE_NAME).tar.bz2:
 	tar -tf "$@.dl" >/dev/null
 	$(MV) "$@.dl" "$@"
 
-lib/$(PCRE_NAME)/src/pcre2.h.generic: lib/$(PCRE_NAME).tar.bz2
+pcrefiles: lib/$(PCRE_NAME).tar.bz2
 	-$(ECHO) 'Extracting package: $<'
 	-cd "$(<D)"; tar -xf "$(<F)"
 	-$(ECHO) 'Finished extracting: $<'
 	-$(ECHO) ' '
 
-lib/$(PCRE_NAME)/src/pcre2_chartables.c: lib/$(PCRE_NAME)/src/pcre2_chartables.c.dist
+lib/$(PCRE_NAME)/src/*.c: pcrefiles
+
+lib/$(PCRE_NAME)/src/pcre2.h.generic: pcrefiles
+
+lib/$(PCRE_NAME)/src/pcre2_chartables.c: pcrefiles
 	$(CP) lib/$(PCRE_NAME)/src/pcre2_chartables.c.dist lib/$(PCRE_NAME)/src/pcre2_chartables.c
 
 lib/$(PCRE_NAME)/src/pcre2.h: lib/$(PCRE_NAME)/src/pcre2.h.generic
 	$(CP) $< $@
 
-lib/$(PCRE_NAME)/obj/%.o: lib/pcre2-10.35/src/%.c lib/$(PCRE_NAME)/src/pcre2.h
-	$(CC) $(CFLAGS) $(PCRE_FLAGS) -o"$@" "$<" -DQ=1
+$(PCRE_OBJS) : lib/$(PCRE_NAME)/obj/%.o: lib/$(PCRE_NAME)/src/%.c lib/$(PCRE_NAME)/src/pcre2.h pcrefiles
+	$(CC) $(CFLAGS) $(PCRE_FLAGS) -o"$@" "$<"
 
 pcre2: lib/pcre2-10.35/src/pcre2.h
 
 # JIT
 
-lib/$(PCRE_NAME)/obj/%.o: lib/$(PCRE_NAME)/src/sljit/%.c
-	$(CC) $(CFLAGS) $(JIT_FLAGS) -mshstk -o"$@" "$<"
+$(JIT_OBJS) : lib/$(PCRE_NAME)/obj/jit/%.o: lib/$(PCRE_NAME)/src/sljit/%.c pcrefiles
+	$(CC) $(CFLAGS) $(JIT_FLAGS) $(MSHSTK_FLAG) -o"$@" "$<"
 
 # CUNIT
 
@@ -216,11 +225,11 @@ lib/$(CUNIT_NAME).tar.bz2:
 	tar -tf "$@.dl" >/dev/null
 	$(MV) "$@.dl" "$@"
 
-lib/$(CUNIT_NAME)/Sources/Framework/CUError.c: lib/$(CUNIT_NAME).tar.bz2
+lib/$(CUNIT_NAME)/Sources/Framework/CUError.c lib/$(CUNIT_NAME)/CUnit/Headers/CUnit.h: lib/$(CUNIT_NAME).tar.bz2
 	-$(ECHO) 'Extracting package: $<'
 	-cd "$(<D)"; tar -xf "$(<F)"
 	$(MKDIR) lib/$(CUNIT_NAME)/obj
-	$(CP) lib/$(CUNIT_NAME)/CUnit/Headers/CUnit.h.in lib/$(CUNIT_NAME)/CUnit/Headers/CUnit.h
+	$(SED) 's/@VERSION@-@RELEASE@/$(CUNIT_VER)-internal/g' lib/$(CUNIT_NAME)/CUnit/Headers/CUnit.h.in > lib/$(CUNIT_NAME)/CUnit/Headers/CUnit.h
 	-$(ECHO) 'Finished extracting: $<'
 	-$(ECHO) ' '
 

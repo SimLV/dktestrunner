@@ -24,9 +24,10 @@ int wstartup()
 
 int checkblock(int unused)
 {
-    if (WSAGetLastError() == WSAEWOULDBLOCK)
+    DWORD err = WSAGetLastError();
+    if (err == WSAEWOULDBLOCK)
         return 0;
-    fprintf(stderr, "%s error!\n", __func__ );
+    fprintf(stderr, "%s error: %x\n", __func__, err);
     return 1;
 }
 
@@ -38,6 +39,8 @@ void wcleanup()
 void make_nonblocking(SOCKET s)
 {
   unsigned long one = 1;
+  int max_size = 65536;
+  setsockopt(s, SOL_SOCKET, SO_RCVBUF, &max_size, sizeof(int));
   ioctlsocket(s, FIONBIO, &one);
 }
 

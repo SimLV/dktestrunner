@@ -104,7 +104,7 @@ IF(PLAYER1,ALL_DUNGEONS_DESTROYED == 1)
 ENDIF
 
 
-COMPUTER_PLAYER(PLAYER4, 7)
+COMPUTER_PLAYER(PLAYER3, 7)
 
 REM // Each test script is started with line
 REM // `REM **TEST** <test_name>`
@@ -125,4 +125,4 @@ REM **TEST** Imp claimed neutral land
 REM * map.claimed plyr=3 x=5 y=3
 
 REM **TEST** Imp reinforced a wall
-REM * map.claimed plyr=3 x=5 y=3
+REM * map.reinforced plyr=3 x=5 y=6

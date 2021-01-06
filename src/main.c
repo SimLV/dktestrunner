@@ -15,9 +15,9 @@
 #endif
 
 const int MAX_CHECKS = 8;
-const int BUF_SIZE = 4096;
-const int DELAY = 5;
+const int BUF_SIZE = 2048;
 
+int DELAY = 5;
 int START_DELAY = 45;
 const char *end_turn_buf = "12000";
 const char *frameskip = "2";
@@ -317,7 +317,7 @@ int tst_process(const char *data_buf, void *context_, void *addr, unsigned int a
   struct TestContext *start_context = context_;
   int ok;
   if (print_all)
-    printf("%s", data_buf);
+    printf("%s\n", data_buf);
 
   for (struct TestContext *context = start_context; context != NULL; context = context->next)
   {
@@ -505,6 +505,19 @@ int main(int argc, char **argv)
     {
       wait_events = 0;
     }
+    else if (strcmp(argv[idx], "--delay") == 0)
+    {
+      idx++;
+      if (idx >= argc)
+      {
+        fprintf(stderr, "%s: option required\n", argv[idx - 1] + 2);
+        return 1;
+      }
+      DELAY = atoi(argv[idx]);
+      if (DELAY < 1)
+        DELAY = 1;
+      START_DELAY = DELAY;
+    }
     else if (strcmp(argv[idx], "--frameskip") == 0)
     {
       idx++;
@@ -645,6 +658,8 @@ void process(ProcessFn process_fn, void *context)
   char *values = NULL;
   time_t fut_t = {0}, now_t = {0};
   unsigned int from_size = sizeof(from_buf);
+  char *data_ptr;
+  char *next_ptr;
 
   time(&fut_t);
   fut_t += START_DELAY;
@@ -666,24 +681,48 @@ void process(ProcessFn process_fn, void *context)
 
       strcpy(buf_copy, data_buf);
       main_axis = buf_copy;
-      tags = strchr(buf_copy, ',');
-      values = strchr(buf_copy, ' ');
+      {
+        data_buf[read] = 0;
+        time(&fut_t);
+        fut_t += DELAY;
 
-      if (tags != NULL)
-      {
-        tags[0] = 0;
-        tags++;
-      }
-      if (values != NULL)
-      {
-        values[0] = 0;
-        values++;
-      }
+        data_ptr = data_buf;
+        while (data_ptr != NULL)
+        {
+          next_ptr = strchr(data_ptr, '\n');
+          if (next_ptr)
+          {
+            *next_ptr = 0;
+            next_ptr++;
+          }
+          strcpy(buf_copy, data_ptr);
+          main_axis = buf_copy;
+          tags = strchr(buf_copy, ',');
+          values = strchr(buf_copy, ' ');
 
-      if ((skip_events == NULL) || (simple_match(skip_events, main_axis) == 0))
-      {
-        if (process_fn(data_buf, context, &from_buf, from_size) == 1)
-          break;
+          if (tags != NULL)
+          {
+            tags[0] = 0;
+            tags++;
+          }
+          if (values != NULL)
+          {
+            values[0] = 0;
+            values++;
+          }
+
+          if (data_ptr[0] != 0)
+          {
+            if ((skip_events == NULL) || (simple_match(skip_events, main_axis) == 0))
+            {
+              if (process_fn(data_ptr, context, &from_buf, from_size) == 1)
+              {
+                return;
+              }
+            }
+          }
+          data_ptr = next_ptr;
+        }
       }
     }
     time(&now_t);
